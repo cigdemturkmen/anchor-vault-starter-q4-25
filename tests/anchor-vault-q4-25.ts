@@ -3,6 +3,13 @@ import { Program } from "@coral-xyz/anchor";
 import { AnchorVaultQ425 } from "../target/types/anchor_vault_q4_25";
 import { expect } from "chai";
 
+// in root folder run:
+// yarn install
+// anchor build
+// surfpool start // to start local validator with forking mainnet
+// in a new terminal run: 
+// anchor test --skip-local-validator --skip-deploy // "skip local validator" not to fire up our own local validator since surfpool's local validator is already running
+
 describe("anchor_vault_q4_25", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -117,8 +124,13 @@ describe("anchor_vault_q4_25", () => {
     expect(await provider.connection.getBalance(vaultPda)).to.equal(0);
 
     // VaultState should be closed (null)
-    const vaultStateInfo = await provider.connection.getAccountInfo(vaultStatePda);
-    expect(vaultStateInfo).to.be.null;
+    // const vaultStateInfo = await provider.connection.getAccountInfo(vaultStatePda);
+    // expect(vaultStateInfo).to.be.null; // this does not work with surfpool since it returns an account with 0 lamports and empty data instead of null, so we check for both cases below
+
+    const vaultStateInfo = await provider.connection.getAccountInfo(vaultStatePda, "finalized");
+    // Accept both behaviors: real validator: null or surfpool: non-null but effectively closed
+    expect(vaultStateInfo === null || (vaultStateInfo.lamports === 0 && vaultStateInfo.data.length === 0)).to.be.true;
+
 
     // User gets back the remaining balance - fees
     expect(finalUserBalance).to.equal(initialUserBalance + initialVaultBalance + initialVaultStateBalance - 5000);
